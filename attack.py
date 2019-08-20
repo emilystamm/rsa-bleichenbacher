@@ -1,5 +1,4 @@
 from Crypto.Util.number import bytes_to_long, long_to_bytes
-from main import Oracle
 import intervals as I
 import time
 
@@ -14,15 +13,15 @@ def PKCS1_decode(encoded):
     return message.decode("utf-8") 
 
 # Call oracle with integer c to determine if corresponding plaintext conforms
-def CallOracle(c):
+def CallOracle(c, RSA_Cipher):
     ciphertext = long_to_bytes(c)
-    return Oracle(ciphertext)
+    return RSA_Cipher.Oracle(ciphertext)
 
 # Calculate c_i 
-def CalculateC_i(c,e,n, lower, upper, calls_to_oracle, Oracle):
+def CalculateC_i(c,e,n, lower, upper, calls_to_oracle, RSA_Cipher):
     s_i = lower
     c_i = (c * pow(s_i,e,n)) % n
-    while not CallOracle(c_i) and s_i <= upper:
+    while not CallOracle(c_i, RSA_Cipher) and s_i <= upper:
         # To keep track of iterations
         if calls_to_oracle % 10000 == 0: print("Calls to Oracle : ", calls_to_oracle)
         calls_to_oracle += 1 
@@ -35,12 +34,10 @@ def CalculateC_i(c,e,n, lower, upper, calls_to_oracle, Oracle):
     else: return s_i, calls_to_oracle
 
 # Bleichenbacher attack
-def Bleichenbacher(ciphertext,public_key):
-    # Get number of bits and public key intergers e, n
-    pk_str = str(public_key)
-
+def Bleichenbacher(ciphertext, RSA_Cipher):
     # Initialize variables
-    bits = int(pk_str[pk_str.find("(")+1:pk_str.find(")")])
+    bits = RSA_Cipher.Bits()
+    public_key = RSA_Cipher.PublicKey()
     e = public_key.e
     n = public_key.n
     i = 1
@@ -65,7 +62,7 @@ def Bleichenbacher(ciphertext,public_key):
     print(ciphertext)
     print("\n\nIteration 0\n---------------------------------------------")
     print("\nStep 1: find ciphertext c in integer form\nc =", c)
-    print("\nConfirm Call Oracle on Given Ciphertext:", CallOracle(c))  # Check that CallOracle works 
+    print("\nConfirm Call Oracle on Given Ciphertext:", CallOracle(c, RSA_Cipher))  # Check that CallOracle works 
     print("\nM_0 =", M_i_1)
 
     # Repeat until you M_i a single interval with one element
@@ -77,14 +74,14 @@ def Bleichenbacher(ciphertext,public_key):
         # Step 2a: Calculate s_i, smallest int >= n/3B that conforms
         if i == 1: 
             print("\nStep 2a: find smallest s_1 >= n/3B such that plaintext corresponding to c(s_1^e) mod n conforms")
-            s_i, calls_to_oracle = CalculateC_i(c, e, n, ceil(n, 3 * B), n-1, calls_to_oracle, Oracle)
+            s_i, calls_to_oracle = CalculateC_i(c, e, n, ceil(n, 3 * B), n-1, calls_to_oracle, RSA_Cipher)
             print("s_" + str(i),  " = ", s_i, "\n")
 
         # Step 2b: If M_i-1 has multiple disjoint intervals,
         # Calculate smallest s_i > s_i_1 that conforms
         elif len(M_i_1) > 1: 
             print("\nStep 2b: find smallest s_i > s_(i-1) such that plaintext corresponding to c(s_i^e) mod n conforms\ns_i_1 = ", s_i_1)
-            s_i, calls_to_oracle  = CalculateC_i(c, e, n, s_i_1 + 1, n-1, calls_to_oracle, Oracle) #change to s_i + 1
+            s_i, calls_to_oracle  = CalculateC_i(c, e, n, s_i_1 + 1, n-1, calls_to_oracle, RSA_Cipher) #change to s_i + 1
             print("s_" + str(i),  " = ", s_i, "\n")
 
         # Step 2c: Number of intervals = 1 -> find s_i
@@ -97,7 +94,7 @@ def Bleichenbacher(ciphertext,public_key):
             while s_i == 0:
                 lower = ceil(2 * B + r_i * n, b)
                 upper = ceil(3 * B + r_i * n, a) - 1
-                s_i, calls_to_oracle  = CalculateC_i(c, e, n, lower,  upper, calls_to_oracle, Oracle)
+                s_i, calls_to_oracle  = CalculateC_i(c, e, n, lower,  upper, calls_to_oracle, RSA_Cipher)
                 r_i += 1
             print("s_" + str(i),  " = ", s_i, "\n")
 
@@ -133,23 +130,3 @@ def Bleichenbacher(ciphertext,public_key):
     print("\n---------------------------------------------\nTime Elapsed:", elapsed_time / 60, " minutes\n")
     return message
 
-
-from rsa import GenerateKeys, Encrypt
-
-# Choose bits (1024, 2048, ...)
-bits = 2048
-# Generate Keys
-private_key, public_key = GenerateKeys(bits)
-
-# Initial Message
-message = "AES Session Key = 1234567890ABCDEF"
-encoded = "AES Session Key = 1234567890ABCDEF".encode("utf-8")
-
-# Encrypt Message
-ciphertext = Encrypt(encoded, public_key)
-
-# Attack 
-stolen_message = Bleichenbacher(ciphertext, public_key)
-print("\nBleichenbacher Stolen Message = ", stolen_message)
-print("\nOriginal Message = ", message)
-print("\nStolen Message == Original Message:",  message == stolen_message)
