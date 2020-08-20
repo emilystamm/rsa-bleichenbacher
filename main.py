@@ -6,7 +6,7 @@ if __name__ == "__main__":
         message = "AES Session Key = 1234567890ABCDEF"
         encoded = "AES Session Key = 1234567890ABCDEF".encode("utf-8")   
         # Create RSA Cipher
-        bits = 2048 # Choose bits (1024, 2048, ...)
+        bits = 1024 # Choose bits (1024, 2048, ...)
         RSA_Cipher = RSA_Cipher(bits) 
         # Encryption 
         ciphertext = RSA_Cipher.Encrypt(encoded)        

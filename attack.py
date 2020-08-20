@@ -17,6 +17,7 @@ def CallOracle(c, RSA_Cipher):
     ciphertext = long_to_bytes(c)
     return RSA_Cipher.Oracle(ciphertext)
 
+
 # Calculate c_i 
 def CalculateC_i(c,e,n, lower, upper, calls_to_oracle, RSA_Cipher):
     s_i = lower
